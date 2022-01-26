@@ -24,25 +24,10 @@ router.get('/',async(req, res, next)=>{
     })
 })
 
-router.get('/hold',async(req, res, next)=>{
-    const match = {}
-    console.log(req.body);
-    if(req.body.status){
-        match.status= req.query.status ==='true'
-    }
-    try{
-        let order = await req.Order.populate({
-            path:'hold',
-            match
-        }).execPopulate();
-        res.status(200).send(order)
 
-    }catch(e){
-        res.status(400).send(e.message)
-    }
-})
+ 
 
-router.get('/posts', async (req,res) => {
+router.get('/hold', async (req,res) => {
     let hold=[]
     let order = await Order.find();
     
@@ -62,6 +47,36 @@ router.get('/posts', async (req,res) => {
 })
 
 
+router.get('/:date1/:date2', async(req, res, next) =>{
+    
+    let hold=[];
+    let order = await Order.find()
+    let d1=new Date(req.params.date1)
+    let d2=new Date(req.params.date2)
+    for(var i=0;i<order.length;i++)
+    {
+        //if(order[i].date >=d1  && order[i].date <=d2)
+        //{hold.push(order[i]);
+        //    console.log(order[i].date >=d1  && order[i].date <=d2)
+        //}
+        if((order[i].date>= d1)&&(order[i].date <=d2) )
+        {
+            
+            hold.push(order[i]);
+        }
+        
+        //console.log(order[i].date)
+        //console.log((order[i].date>= d1) )
+
+
+    }
+    //console.log(order[0].date)
+    console.log( order[0].date < d1)
+    res.status(200).send({
+        hold
+    })
+
+})
 
 
 
