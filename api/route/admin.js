@@ -116,11 +116,14 @@ router.get('/:date1', async(req, res, next) =>{
     
 })
 */
-const csvWriter = createcsvwriter({
+
+
+const csvWriterHold = createcsvwriter({
     path:'./hold.csv',
     header:['orderID', 'name', 'date','status','zipCode','holdType','email'].map((item)=>({id: item, title: item}))
 
 })
+
 
 const csvWriter = createcsvwriter({
     path:'./date.csv',
@@ -136,7 +139,7 @@ async function converterjson(){
     const parsed_data = JSON.parse(file_data);
     console.log(parsed_data);
     try{
-       await csvWriter.writeRecords(parsed_data.hold);
+       await csvWriterHold.writeRecords(parsed_data.hold);
     }catch(err){
         console.log(err);
         console.log("err");

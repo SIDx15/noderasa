@@ -105,6 +105,7 @@ router.put('/:oid/editemail/:email',async(req, res, next)=>{
     var msg;
     var dom = req.params.email.substring(req.params.email.lastIndexOf("@") +1);
     let email = await Order.find({email : req.params.email});
+    
     let domainnum = await Domain.findOne({ domain: dom });
     var val= await emailValidator.validate(req.params.email);
     console.log(val);
@@ -126,6 +127,7 @@ router.put('/:oid/editemail/:email',async(req, res, next)=>{
         }
         else{
             const Oid = await Order.findOne({ orderID: req.params.oid });
+            let oldemail = Oid.email;
             if(Oid.holdType===3)
             {
                 Order.updateOne({orderID: req.params.oid},{      
@@ -140,7 +142,7 @@ router.put('/:oid/editemail/:email',async(req, res, next)=>{
                     }
                 }).then(result=>{
                     res.status(200).json({
-                        msg :'email updated'
+                        msg :`email updated from ${oldemail} to ${req.params.email}`
                     })
                 })
                 .catch(err=>{
@@ -161,7 +163,7 @@ router.put('/:oid/editemail/:email',async(req, res, next)=>{
                     }
                 }).then(result=>{
                     res.status(200).json({
-                        msg :'email updated'
+                        msg :`email updated from ${oldemail} to ${req.params.email}`
                     })
                 })
                 .catch(err=>{
@@ -172,7 +174,7 @@ router.put('/:oid/editemail/:email',async(req, res, next)=>{
     }
     else{
         res.status(200).json({
-            msg :"your email is invalid"
+            msg :`your email ${req.params.email} is invalid`
         })
     }
 })
@@ -186,6 +188,7 @@ router.put('/:oid/editzipcode/:zipcode',async(req, res, next)=>{
     console.log(t);
     
     const Oid =await Order.findOne({ orderID: req.params.oid });
+    let oldzip = Oid.zipCode;
     fetch(`https://api.postalpincode.in/pincode/${t}`)
     .then(res => res.json())
     .then(json =>{
@@ -209,7 +212,7 @@ router.put('/:oid/editzipcode/:zipcode',async(req, res, next)=>{
                 })
                 .then(result=>{
                     res.status(200).json({
-                        updated: "got successfully updated"
+                        updated: `zipcode updated from ${oldzip} to ${req.params.zipcode} `
                     })
                 })
                 .catch(err=>{
@@ -232,7 +235,7 @@ router.put('/:oid/editzipcode/:zipcode',async(req, res, next)=>{
                 })
                 .then(result=>{
                     res.status(200).json({
-                        updated: "got successfully updated"
+                        updated:`zipcode updated from ${oldzip} to ${req.params.zipcode} `
                     })
                 })
                 .catch(err=>{
@@ -244,7 +247,7 @@ router.put('/:oid/editzipcode/:zipcode',async(req, res, next)=>{
         else
         {
             res.status(200).json({
-                msg : "is invalid"
+                msg : `your zipcode ${req.params.zipcode} is invalid`
             })
         }
     })
