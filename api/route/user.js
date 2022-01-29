@@ -4,6 +4,8 @@ const router = express.Router();
 const Order = require('../model/user');
 const Domain = require('../model/domain');
 const fetch = require('node-fetch');
+const emailValidator = require('deep-email-validator');
+
 
 router.post('/domain',(req, res, next)=>{
     console.log(req.body);
@@ -68,21 +70,25 @@ router.get('/:oid',async(req, res, next)=>{
     const Oid = await Order.findOne({ orderID: req.params.oid });
     console.log(Oid);
     
-    var msg;
+    let msg;
     if(Oid.status)
-    {msg="delivered"}
+    {msg="Successful"}
     else
     {if(Oid.holdType===1)
     {
-        msg="your order is in hold due to email"
+        msg="on hold due to incorrect email"
     }
     else if(Oid.holdType===2)
     {
-        msg="order on hold due to zip code"
+        msg="on hold due to incorrect zipcode"
     }
     else if(Oid.holdType===3)
     {
-        msg="order on hold due to zip code and email"
+        msg="on hold due to incorrect email and zipcode"
+    }
+    else if(Oid.holdType===4)
+    {
+        msg="on hold as your email is blacklisted from our company"
     }
     }
 
@@ -96,116 +102,155 @@ router.get('/:oid',async(req, res, next)=>{
 
 router.put('/:oid/editemail/:email',async(req, res, next)=>{
     console.log(req.params.email)
-    
     var msg;
     var dom = req.params.email.substring(req.params.email.lastIndexOf("@") +1);
     let email = await Order.find({email : req.params.email});
-    
     let domainnum = await Domain.findOne({ domain: dom });
-    console.log(dom);
-    console.log(domainnum.domain);
-    if(email.length>=1)
+    var val= await emailValidator.validate(req.params.email);
+    console.log(val);
+    console.log(val.validators.regex.valid)
+    if(val.validators.regex.valid)
     {
-        msg= "already exists"
-        res.status(200).json({
-            msg
-        })
-    }
-    else if(domainnum.domain==dom){
-        msg= "domain blacklisted "
-        res.status(200).json({
-            msg
-        })
+        if(email.length>=1)
+        {
+            msg= "already exists"
+            res.status(200).json({
+                msg
+            })
+        }    
+        else if(domainnum && domainnum.domain==dom ){
+            msg= "domain blacklisted "
+            res.status(200).json({
+                msg
+            })
+        }
+        else{
+            const Oid = await Order.findOne({ orderID: req.params.oid });
+            if(Oid.holdType===3)
+            {
+                Order.updateOne({orderID: req.params.oid},{      
+                    $set:{
+                        orderID : req.body.orderID,
+                        name: req.body.name,
+                        date: req.body.date,
+                        status: "false",
+                        zipCode: req.body.zipcode,
+                        holdType: "2",
+                        email: req.params.email
+                    }
+                }).then(result=>{
+                    res.status(200).json({
+                        msg :'email updated'
+                    })
+                })
+                .catch(err=>{
+                    console.log(err)
+                })
+            }
+            else if(Oid.holdType===1 || Oid.holdType ===4)
+            {
+                Order.updateOne({orderID: req.params.oid},{      
+                    $set:{
+                        orderID : req.body.orderID,
+                        name: req.body.name,
+                        date: req.body.date,
+                        status: "true",
+                        zipCode: req.body.zipcode,
+                        holdType: "0",
+                        email: req.params.email
+                    }
+                }).then(result=>{
+                    res.status(200).json({
+                        msg :'email updated'
+                    })
+                })
+                .catch(err=>{
+                    console.log(err)
+                })
+            }    
+        }
     }
     else{
-        Order.findOneAndUpdate({orderID: req.params.oid},{
-            $set:{
-                orderID : req.body.orderID,
-                name: req.body.name,
-                date: req.body.date,
-                status: req.body.status,
-                zipCode: req.body.zipcode,
-        
-                holdType: req.body.holdType,
-                email: req.params.email
-            }
-        })
-        .then(result=>{
-            res.status(200).json({
-                msg :'email updated'
-            })
-        })
-        .catch(err=>{
-            console.log(err)
+        res.status(200).json({
+            msg :"your email is invalid"
         })
     }
-    
 })
 
-router.get('/:oid/editzipcode/:zipcode',async(req, res, next)=>{
+
+
+router.put('/:oid/editzipcode/:zipcode',async(req, res, next)=>{
     console.log(req.params.zipcode);
-    var t;
-    fetch(`https://api.postalpincode.in/pincode/${req.params.zipcode}`)
+    var t = req.params.zipcode;
+    t=t.split(" ").join("");
+    console.log(t);
+    
+    const Oid =await Order.findOne({ orderID: req.params.oid });
+    fetch(`https://api.postalpincode.in/pincode/${t}`)
     .then(res => res.json())
     .then(json =>{
         console.log(json[0].Status)
         if(json[0].Status=='Success')
         {
-            Order.findOneAndUpdate({orderID: req.params.oid},{
-                $set:{
-                    orderID : req.body.orderID,
-                    name: req.body.name,
-                    date: req.body.date,
-                    status: req.body.status,
-                    zipCode: req.params.zipcode,
             
-                    holdType: req.body.holdType,
-                    email: req.body.email
-                }
-            })
-            .then(result=>{
-                res.status(200).json({
-                    updated: result
+            if(Oid.holdType===3)
+            {
+                Order.findOneAndUpdate({orderID: req.params.oid},{
+                    $set:{
+                        orderID : req.body.orderID,
+                        name: req.body.name,
+                        date: req.body.date,
+                        status: "false",
+                        zipCode: t,
+                
+                        holdType: "1",
+                        email: req.body.email
+                    }
                 })
-            })
-            .catch(err=>{
-                console.log(err)
-            })
+                .then(result=>{
+                    res.status(200).json({
+                        updated: "got successfully updated"
+                    })
+                })
+                .catch(err=>{
+                    console.log(err)
+                })
+            }
+            else if(Oid.holdType===2)
+            {
+                Order.findOneAndUpdate({orderID: req.params.oid},{
+                    $set:{
+                        orderID : req.body.orderID,
+                        name: req.body.name,
+                        date: req.body.date,
+                        status: "true",
+                        zipCode: t,
+                
+                        holdType: "0",
+                        email: req.body.email
+                    }
+                })
+                .then(result=>{
+                    res.status(200).json({
+                        updated: "got successfully updated"
+                    })
+                })
+                .catch(err=>{
+                    console.log(err)
+                })
+            }
+            
         }
         else
         {
             res.status(200).json({
-                msg : "your zipcode is invalid fam"
+                msg : "is invalid"
             })
         }
     })
     
+    
    
-})
-
-router.put('/:oid/editzipcode/:zipcode',async(req, res, next)=>{
-    
-    
-    Order.findOneAndUpdate({orderID: req.params.oid},{
-        $set:{
-            orderID : req.body.orderID,
-            name: req.body.name,
-            date: req.body.date,
-            status: req.body.status,
-            zipCode: req.params.zipcode,
-    
-            holdType: req.body.holdType,
-            email: req.body.email
-        }
-    })
-    .then(result=>{
-        res.status(200).json({
-            updated: result
-        })
-    })
-    .catch(err=>{
-        console.log(err)
-    })
 })
 
 
