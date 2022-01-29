@@ -122,6 +122,12 @@ const csvWriter = createcsvwriter({
 
 })
 
+const csvWriter = createcsvwriter({
+    path:'./date.csv',
+    header:['orderID', 'name', 'date','status','zipCode','holdType','email'].map((item)=>({id: item, title: item}))
+
+})
+
 async function converterjson(){
     const file_data = await fs.readFile('./api/route/hold.json', (err, data) => {
         console.log(data);})
